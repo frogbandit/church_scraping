@@ -8,42 +8,28 @@ def read_church_websites():
 	df = pd.read_csv('USA Church List Database ReferenceUSA RANDOM SAMPLE.csv')
 	church_websites = df['Website']
 	return church_websites
-	# print(church_websites)
-	# print(church_websites.iloc[0])
 
 class ChurchSpider(scrapy.Spider):
 	name = 'churchspider'
 	church_websites = read_church_websites()
-	print(church_websites)
 
-	start_urls = ['http://' + church_websites.iloc[0], 'http://' + church_websites.iloc[1]]
-	print(start_urls)
-
-	# rules = (
-	# 	Rule(LinkExtractor(allow_domains=start_urls), callback='parse_item', follow=True),
-	# )
-
-	# def parse_item(self, response):
-	# 	item = dict()
-	# 	item['url'] = response.url
-	# 	item['title'] = response.meta['link_text']
-	# 	# extracting basic body
-	# 	item['body'] = '\n'.join(response.xpath('//text()').extract())
-	# 	# or better just save whole source
-	# 	return item
-
+	# append https:// to all URLs
+	start_urls = []
+	for i, row in church_websites.iteritems():
+		if "//" not in row:
+			start_urls.append('http://' + row)
 
 	def parse(self, response):
+		# remove <script> tags from <p> elements
 		for text in response.css('p'):
-				yield {'text': remove_tags(remove_tags_with_content(text.extract(), ('script', )))}
+			yield {'text': remove_tags(remove_tags_with_content(text.extract(), ('script', )))}
 
+		# add new URLs that are descendants of the request URL (same domain)
 		for next_page in response.css('div > a'):
-				a_tag = next_page.extract()
+			a_tag = next_page.extract()
+			if "href=" in a_tag:
 				link = (a_tag.split('href="')[1]).split('"')[0]
-				if "/" in link:
+				if link.count("/") > 2:
 					if link.split("/")[2] in response.request.url:
 						yield response.follow(next_page, self.parse)
 
-
-# if __name__ == "__main__":
-	
